@@ -33,7 +33,7 @@ library(DT)
 ### Step 1 - Load the data to be cleaned and processed
 
 ```{r read data, warning=FALSE, message=FALSE}
-urlfile<-'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/cleaned_hm.csv'
+urlfile<-'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/cleaned_hm.csv'  # Cleaned_hm file
 hm_data <- read_csv(urlfile)
 ```
 
@@ -136,7 +136,7 @@ datatable(hm_data)
 ### Exporting the processed text data into a CSV file
 
 ```{r export data}
-write_csv(hm_data, "../output/processed_moments.csv")
+write_csv(hm_data, "~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output/processed_moments.csv")
 ```
 
 The final processed data is ready to be used for any kind of analysis.
