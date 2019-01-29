@@ -1,0 +1,15 @@
+---
+title: "Project 1- xh2383"
+output: html_notebook
+---
+
+
+```{r include=FALSE}
+setwd("~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/data/HappyDB Raw data/happydb/data")
+```
+
+
+```{r}
+
+```
+

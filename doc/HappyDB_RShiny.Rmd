@@ -19,7 +19,7 @@ From the packages' descriptions:
 + `scales` map data to aesthetics, and provide methods for automatically determining breaks and labels for axes and legends;
 + `wordcloud2` provides an HTML5 interface to wordcloud for data visualization;
 + `gridExtra` contains miscellaneous functions for "grid" graphics;
-+ `ngram` is for constructing n-grams (“tokenizing”), as well as generating new text based on the n-gram structure of a given text input (“babbling”);
++ `ngram` is for constructing n-grams (???tokenizing???), as well as generating new text based on the n-gram structure of a given text input (???babbling???);
 + `Shiny` is an R package that makes it easy to build interactive web apps straight from R;
 
 ```{r load libraries, warning=FALSE, message=FALSE}
@@ -39,7 +39,7 @@ library(shiny)
 We use the processed data for our analysis and combine it with the demographic information available.
 
 ```{r load data, warning=FALSE, message=FALSE}
-hm_data <- read_csv("../output/processed_moments.csv")
+hm_data <- read_csv("~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output/processed_moments.csv")
 
 urlfile<-'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/demographic.csv'
 demo_data <- read_csv(urlfile)
