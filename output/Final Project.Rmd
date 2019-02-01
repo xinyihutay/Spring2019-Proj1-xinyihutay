@@ -1,0 +1,364 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r set up, message=FALSE, warning=FALSE}
+packages.used=c("rvest", "tibble", "ggpubr", "ggplot2",
+                "sentimentr", "gplots", "dplyr","gcookbook",
+                "tm", "syuzhet", "factoextra", "scales", "RColorBrewer","wordcloud",
+                "RANN", "plotly", "topicmodels","beeswarm","cluster","tidytext") #"qdap"
+
+# check packages that need to be installed.
+packages.needed=setdiff(packages.used, 
+                        intersect(installed.packages()[,1], 
+                                  packages.used))
+# install additional packages
+if(length(packages.needed)>0){
+  install.packages(packages.needed, dependencies = TRUE)
+}
+# load libraries
+library("ggpubr")
+library("rvest")
+library("tibble")
+# library("qdap")   Error exists
+library("sentimentr")
+library("gplots")
+library("dplyr")
+library("syuzhet")
+library("factoextra")
+library("scales")
+library("RColorBrewer")
+library("RANN")
+library("plotly")
+library("topicmodels")
+library("beeswarm")
+library("cluster") 
+library("wordcloud")
+library("RColorBrewer")
+library("ggplot2")
+library("gcookbook")
+library("tm")
+library("tidytext")
+library("tidyverse")
+library("DT")
+
+
+print(R.version)
+```
+
+# Pre-processing 
+
+```{r read data, warning=FALSE, message=FALSE}
+clean_hm = 'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/cleaned_hm.csv'  # Cleaned_hm file
+demographic = 'https://raw.githubusercontent.com/rit-public/HappyDB/master/happydb/data/demographic.csv' 
+clean.hm  =  read_csv(clean_hm)
+demog =  read_csv(demographic)
+```
+
+```{r Clean text}
+corpus = VCorpus(VectorSource(clean.hm$cleaned_hm))
+corpus = tm_map(corpus, stripWhitespace)  # remove white space
+corpus = tm_map(corpus, content_transformer(tolower)) # convert to lower case
+corpus = tm_map(corpus, removeWords, stopwords("english")) # remove stop words
+corpus = tm_map(corpus, removeWords, character(0)) # remove empty words
+corpus = tm_map(corpus, removePunctuation) # remove punctuations
+```
+
+```{r Stemming words}
+stemmed = tm_map(corpus, stemDocument) %>%
+  tidy() %>%
+  select(text)
+```
+
+```{r Dictionary remove stop words}
+dict = tidy(corpus) %>%
+  select(text) %>%
+  unnest_tokens(dictionary, text)
+
+data("stop_words")
+word = c("happy","ago","yesterday","lot","today","months","month",
+                 "happier","happiest","last","week","past")
+
+stop_words = stop_words %>%
+  bind_rows(mutate(tibble(word), lexicon = "updated"))
+```
+
+```{r tidy stems with dictionary}
+completed = stemmed %>%
+  mutate(id = row_number()) %>%
+  unnest_tokens(stems, text) %>% # seperate stemmed into single words, and mark their id
+  bind_cols(dict) %>% # column combine dict and stemmed, 1-to-1 matching
+  anti_join(stop_words, by = c("dictionary" = "word")) # delete meaningless words
+```
+
+```{r stem completion, warning=FALSE, message=FALSE}
+completed = completed %>%
+  group_by(stems) %>%
+  count(dictionary) %>%
+  mutate(word = dictionary[which.max(n)]) %>%
+  ungroup() %>%
+  select(stems, word) %>%
+  distinct() %>%
+  right_join(completed) %>%
+  select(-stems)
+```
+
+```{r reverse unnest}
+HappyMoments = completed %>%
+  group_by(id) %>%  
+  summarise(text = str_c(word, collapse = " ")) %>% 
+  ungroup() 
+
+hm.demographic = demog %>%
+  mutate(id = row_number()) %>%   
+  inner_join(HappyMoments)
+
+datatable(hm.demographic)
+hm.demographic = hm.demographic[,-7]
+# View(hm.demographic)
+write_csv(hm.demographic, "~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output/hm.demographic.csv")
+#setwd("~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output")
+#hm.demog = read.csv("hm.demographic.csv")
+#mode(hm.demog)
+#View(hm.demog)
+```
+
+# Overview, WordCloud
+```{r WordCloud Overview}
+
+clean.corpus = VCorpus(VectorSource(hm.demographic$text))
+tdm.all = TermDocumentMatrix(clean.corpus)
+tdm.tidy = tidy(tdm.all)
+tdm.overall = summarise(group_by(tdm.tidy, term), sum(count))
+
+wordcloud(tdm.overall$term, tdm.overall$`sum(count)`,
+          scale = c(5,0.1),
+          max.words = 500,
+          min.freq = 5,
+          random.order = FALSE,
+          rot.per = 0.3,
+          use.r.layout = T,
+          random.color = FALSE,
+          colors = brewer.pal(8,"Accent"))
+
+```
+
+# Classification 
+```{r WordCloud Gender}
+male.hm = filter(hm.demographic,gender == "m")$text
+tdm.male = TermDocumentMatrix(VCorpus(VectorSource(male.hm)))
+tdm.tidy.male = tidy(tdm.male)
+tdm_male = summarise(group_by(tdm.tidy.male, term), sum(count))
+wordcloud(tdm_male$term, tdm_male$`sum(count)`,
+          scale = c(5,0.1),
+          max.words = 100,
+          min.freq = 1,
+          random.order = FALSE,
+          rot.per = 0.3,
+          use.r.layout = T,
+          random.color = FALSE,
+          colors = brewer.pal(8,"Accent"))
+
+female.hm = filter(hm.demographic,gender == "f")$text
+tdm.female = TermDocumentMatrix(VCorpus(VectorSource(female.hm)))
+tdm.tidy.female = tidy(tdm.female)
+tdm_female = summarise(group_by(tdm.tidy.female, term), sum(count))
+wordcloud(tdm_female$term, tdm_female$`sum(count)`,
+          scale = c(5,0.1),
+          max.words = 100,
+          min.freq = 1,
+          random.order = FALSE,
+          rot.per = 0.3,
+          use.r.layout = T,
+          random.color = FALSE,
+          colors = brewer.pal(8,"Accent"))
+```
+
+```{r  Gender dataframe ggplot}
+m.all = as.matrix(tdm.all)
+v.all = sort(rowSums(m.all),decreasing=TRUE)
+d.all = data.frame(word = names(v.all),freq=v.all)
+
+m.female = as.matrix(tdm.female)
+v.female = sort(rowSums(m.female),decreasing=TRUE)
+d.female = data.frame(word = names(v.female),freq=v.female)
+
+m.male = as.matrix(tdm.male)
+v.male = sort(rowSums(m.male),decreasing=TRUE)
+d.male = data.frame(word = names(v.male),freq=v.male)
+
+# hm.gender = data.frame(Overall = d.all$word[1:10],
+                       #Freq.overall = d.all$freq[1:10],
+                       #male_HappyMoment = d.male$word[1:10],
+                       #Freq.male = d.male$freq[1:10],
+                       #female_HappyMoment = d.female$word[1:10],
+                       #Freq.femal = d.female$freq[1:10])
+# View(hm.gender)
+
+p1 = ggplot(data = d.male[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "purple")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Male Top 10 Key Words", 
+                x = "Happy Moments", y = "Frequency")
+
+p2 = ggplot(data = d.female[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "red")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Female Top 10 Key Words",
+                x = "Happy Moments", y = "Frequency")
+        
+require("gridExtra")
+grid.arrange(arrangeGrob(p1, p2))
+```
+
+```{r WordCloud Parenthood}
+yes.hm = filter(hm.demographic,parenthood == "y")$text
+tdm.yes = TermDocumentMatrix(VCorpus(VectorSource(yes.hm)))
+tdm.tidy.yes = tidy(tdm.yes)
+tdm_yes = summarise(group_by(tdm.tidy.yes, term), sum(count))
+wordcloud(tdm_yes$term, tdm_yes$`sum(count)`,
+          scale = c(5,0.1),
+          max.words = 100,
+          min.freq = 1,
+          random.order = FALSE,
+          rot.per = 0.3,
+          use.r.layout = T,
+          random.color = FALSE,
+          colors = brewer.pal(8,"Accent"))
+
+no.hm = filter(hm.demographic,parenthood == "n")$text
+tdm.no = TermDocumentMatrix(VCorpus(VectorSource(no.hm)))
+tdm.tidy.no = tidy(tdm.no)
+tdm_no = summarise(group_by(tdm.tidy.no, term), sum(count))
+wordcloud(tdm_no$term, tdm_no$`sum(count)`,
+          scale = c(5,0.1),
+          max.words = 100,
+          min.freq = 1,
+          random.order = FALSE,
+          rot.per = 0.3,
+          use.r.layout = T,
+          random.color = FALSE,
+          colors = brewer.pal(8,"Accent"))
+
+
+```
+
+```{r  Parenthood ggplot dataframe}
+m.yes = as.matrix(tdm.yes)
+v.yes = sort(rowSums(m.yes),decreasing=TRUE)
+d.yes = data.frame(word = names(v.yes),freq=v.yes)
+
+m.no = as.matrix(tdm.no)
+v.no = sort(rowSums(m.no),decreasing=TRUE)
+d.no = data.frame(word = names(v.no),freq=v.no)
+
+p3 = ggplot(data = d.yes[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "orange")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Parenthood Top 10 Key Words", 
+                x = "Happy Moments", y = "Frequency")
+
+p4 = ggplot(data = d.no[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "lightblue")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Childlessness Top 10 Key Words", 
+                x = "Happy Moments", y = "Frequency")
+        
+grid.arrange(arrangeGrob(p3, p4))
+
+hm.parenthood = data.frame(Overall = d.all$word[1:10],
+                       Freq.overall = d.all$freq[1:10],
+                       yes_HappyMoment = d.yes$word[1:10],
+                       Freq.yes = d.yes$freq[1:10],
+                       no_HappyMoment = d.no$word[1:10],
+                       Freq.no = d.no$freq[1:10])
+View(hm.parenthood)
+```
+
+```{r Marital ggplots}
+unique(hm.demographic$marital)
+
+married.hm = filter(hm.demographic,marital == "married")$text
+tdm.married = TermDocumentMatrix(VCorpus(VectorSource(married.hm)))
+m.married = as.matrix(tdm.married)
+v.married = sort(rowSums(m.married),decreasing=TRUE)
+d.married = data.frame(word = names(v.married),freq=v.married)
+
+single.hm = filter(hm.demographic,marital == "single")$text
+tdm.single = TermDocumentMatrix(VCorpus(VectorSource(single.hm)))
+m.single = as.matrix(tdm.single)
+v.single = sort(rowSums(m.single),decreasing=TRUE)
+d.single = data.frame(word = names(v.single),freq=v.single)
+
+divorced.hm = filter(hm.demographic,marital == "divorced")$text
+tdm.divorced = TermDocumentMatrix(VCorpus(VectorSource(divorced.hm)))
+m.divorced = as.matrix(tdm.divorced)
+v.divorced = sort(rowSums(m.divorced),decreasing=TRUE)
+d.divorced = data.frame(word = names(v.divorced),freq=v.divorced)
+
+separated.hm = filter(hm.demographic,marital == "separated")$text
+tdm.separated = TermDocumentMatrix(VCorpus(VectorSource(separated.hm)))
+m.separated = as.matrix(tdm.separated)
+v.separated = sort(rowSums(m.separated),decreasing=TRUE)
+d.separated = data.frame(word = names(v.separated),freq=v.separated)
+
+widowed.hm = filter(hm.demographic,marital == "widowed")$text
+tdm.widowed = TermDocumentMatrix(VCorpus(VectorSource(widowed.hm)))
+m.widowed = as.matrix(tdm.widowed)
+v.widowed = sort(rowSums(m.widowed),decreasing=TRUE)
+d.widowed = data.frame(word = names(v.widowed),freq=v.widowed)
+
+p5 = ggplot(data = d.married[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "pink")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Married", x = "Happy Moments",
+                y = "Frequency")
+
+p6 = ggplot(data = d.single[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "lightblue")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Single", x = "Happy Moments", 
+                y = "Frequency")
+
+p7 = ggplot(data = d.divorced[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "grey")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Divorced", x = "Happy Moments", 
+                y = "Frequency")
+
+p8 = ggplot(data = d.separated[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "darkgreen")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Separated", x = "Happy Moments", 
+                y = "Frequency")
+p9 = ggplot(data = d.widowed[1:10,],aes(x = reorder(word,-freq),
+                                     y = freq))+
+           geom_bar(stat = "identity", fill = "black")+
+           theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+           labs(title = "Widowed", x = "Happy Moments", 
+                y = "Frequency")
+
+
+ggarrange(p5, p6, p7, p8, p9,common.legend=TRUE,legend = 'right')
+```
+
+```{r Countries}
+unique(hm.demographic$country)
+nation.abbre = read.csv("country abbreviation.csv", header = T)
+View(nation.abbre)
+```
+
+
+
+
+
+
