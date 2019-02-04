@@ -4,10 +4,10 @@ output: html_notebook
 ---
 
 ```{r set up, message=FALSE, warning=FALSE}
-packages.used=c("rvest", "tibble", "ggpubr", "ggplot2",
-                "sentimentr", "gplots", "dplyr","gcookbook",
-                "tm", "syuzhet", "factoextra", "scales", "RColorBrewer","wordcloud",
-                "RANN", "plotly", "topicmodels","beeswarm","cluster","tidytext") #"qdap"
+packages.used=c("rvest", "tibble", "ggpubr", "ggplot2","igraph","ggraph",
+                "sentimentr", "gplots", "dplyr","gcookbook","tm", "syuzhet", 
+                "factoextra", "scales", "RColorBrewer","wordcloud","RANN",
+                "plotly", "topicmodels","beeswarm","cluster","tidytext") 
 
 # check packages that need to be installed.
 packages.needed=setdiff(packages.used, 
@@ -18,10 +18,11 @@ if(length(packages.needed)>0){
   install.packages(packages.needed, dependencies = TRUE)
 }
 # load libraries
+library("ggraph")
+library("igraph")
 library("ggpubr")
 library("rvest")
 library("tibble")
-# library("qdap")   Error exists
 library("sentimentr")
 library("gplots")
 library("dplyr")
@@ -43,7 +44,6 @@ library("tidytext")
 library("tidyverse")
 library("DT")
 
-
 print(R.version)
 ```
 
@@ -63,6 +63,7 @@ corpus = tm_map(corpus, content_transformer(tolower)) # convert to lower case
 corpus = tm_map(corpus, removeWords, stopwords("english")) # remove stop words
 corpus = tm_map(corpus, removeWords, character(0)) # remove empty words
 corpus = tm_map(corpus, removePunctuation) # remove punctuations
+View(hm.demographic)
 ```
 
 ```{r Stemming words}
@@ -110,22 +111,54 @@ HappyMoments = completed %>%
   summarise(text = str_c(word, collapse = " ")) %>% 
   ungroup() 
 
-hm.demographic = demog %>%
+HappyMoments = clean.hm %>%
   mutate(id = row_number()) %>%   
   inner_join(HappyMoments)
 
-datatable(hm.demographic)
-hm.demographic = hm.demographic[,-7]
+HappyMoments = HappyMoments[,-c(1,4)]
+
+HappyMoments$country = rep("tba", length(HappyMoments$wid))
+HappyMoments$gender = rep("tba", length(HappyMoments$wid))
+HappyMoments$marital = rep("tba", length(HappyMoments$wid))
+HappyMoments$parenthood = rep("tba", length(HappyMoments$wid))
+
+for (i in sort(unique(HappyMoments$wid))) {
+  
+  index = which(HappyMoments$wid == i)
+  HappyMoments[index,"country"] = demog$country[which(demog$wid == i)]
+  HappyMoments[index,"gender"] = demog$gender[which(demog$wid == i)]
+  HappyMoments[index,"marital"] = demog$marital[which(demog$wid == i)]
+  HappyMoments[index,"parenthood"] = demog$parenthood[which(demog$wid == i)]
+
+}
+hm.demographic = HappyMoments[,-8]
+#datatable(hm.demographic)
+dim(hm.demog)
+
+hm.demographic = hm.demog[-which(is.na(hm.demographic$country)),]
+hm.demographic = hm.demographic[-which(is.na(hm.demographic$gender)),]
+hm.demographic = hm.demographic[-which(is.na(hm.demographic$marital)),]
+hm.demographic = hm.demographic[-which(is.na(hm.demographic$parenthood)),]
+
+dim(hm.demographic)
+
+
 # View(hm.demographic)
 write_csv(hm.demographic, "~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output/hm.demographic.csv")
-#setwd("~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output")
+
+# setwd("~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output")
+#processed_moments = read.csv("processed_moments.csv", header = T)
+#View(processed_moments)
+#length(unique(processed_moments$wid))
+#length(unique(HappyMoments$wid))
+#length(unique(demog$wid))
 #hm.demog = read.csv("hm.demographic.csv")
 #mode(hm.demog)
 #View(hm.demog)
 ```
 
-# Overview, WordCloud
-```{r WordCloud Overview}
+# Overview
+```{r WordCloud }
 
 clean.corpus = VCorpus(VectorSource(hm.demographic$text))
 tdm.all = TermDocumentMatrix(clean.corpus)
@@ -144,12 +177,46 @@ wordcloud(tdm.overall$term, tdm.overall$`sum(count)`,
 
 ```
 
+```{r Relationships between words grams and correlations}
+hm.text = data_frame(line = 1:dim(HappyMoments)[1], text = HappyMoments$text)
+
+hm_bigrams = hm.text %>%
+  unnest_tokens(bigram, text, token = "ngrams", n = 2) 
+
+bigrams_separated = hm_bigrams %>%
+  separate(bigram, c("word1", "word2"), sep = " ")
+
+bigrams_filtered = bigrams_separated %>%
+  filter(!word1 %in% stop_words$word) %>%
+  filter(!word2 %in% stop_words$word)
+
+# new bigram counts:
+bigram_counts = bigrams_filtered %>% 
+  count(word1, word2, sort = TRUE)
+
+bigram_graph = bigram_counts %>%
+  filter(n > 150) %>%  # filter for only relatively common combinations
+  graph_from_data_frame()
+
+set.seed(2019)
+
+a = grid::arrow(type = "closed", length = unit(.1, "inches"))
+
+ggraph(bigram_graph, layout = "fr") +
+  geom_edge_link(aes(edge_alpha = n), show.legend = FALSE,
+                 arrow = a, end_cap = circle(.05, 'inches')) +
+  geom_node_point(color = "pink", size = 3) +
+  geom_node_text(aes(label = name), vjust = 1, hjust = 1) +
+  theme_void()
+```
+
 # Classification 
 ```{r WordCloud Gender}
 male.hm = filter(hm.demographic,gender == "m")$text
 tdm.male = TermDocumentMatrix(VCorpus(VectorSource(male.hm)))
 tdm.tidy.male = tidy(tdm.male)
 tdm_male = summarise(group_by(tdm.tidy.male, term), sum(count))
+
 wordcloud(tdm_male$term, tdm_male$`sum(count)`,
           scale = c(5,0.1),
           max.words = 100,
@@ -159,6 +226,7 @@ wordcloud(tdm_male$term, tdm_male$`sum(count)`,
           use.r.layout = T,
           random.color = FALSE,
           colors = brewer.pal(8,"Accent"))
+
 
 female.hm = filter(hm.demographic,gender == "f")$text
 tdm.female = TermDocumentMatrix(VCorpus(VectorSource(female.hm)))
@@ -176,35 +244,31 @@ wordcloud(tdm_female$term, tdm_female$`sum(count)`,
 ```
 
 ```{r  Gender dataframe ggplot}
-m.all = as.matrix(tdm.all)
-v.all = sort(rowSums(m.all),decreasing=TRUE)
-d.all = data.frame(word = names(v.all),freq=v.all)
+male_words = data_frame(line = 1:length(male.hm), text = male.hm)
+male_words = male_words %>%
+  unnest_tokens(word, text) %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 2266) %>%
+  mutate(word = reorder(word, n)) 
 
-m.female = as.matrix(tdm.female)
-v.female = sort(rowSums(m.female),decreasing=TRUE)
-d.female = data.frame(word = names(v.female),freq=v.female)
 
-m.male = as.matrix(tdm.male)
-v.male = sort(rowSums(m.male),decreasing=TRUE)
-d.male = data.frame(word = names(v.male),freq=v.male)
+female_words = data_frame(line = 1:length(female.hm), text = female.hm)
+female_words = female_words %>%
+  unnest_tokens(word, text) %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 1725) %>%
+  mutate(word = reorder(word, n)) 
 
-# hm.gender = data.frame(Overall = d.all$word[1:10],
-                       #Freq.overall = d.all$freq[1:10],
-                       #male_HappyMoment = d.male$word[1:10],
-                       #Freq.male = d.male$freq[1:10],
-                       #female_HappyMoment = d.female$word[1:10],
-                       #Freq.femal = d.female$freq[1:10])
-# View(hm.gender)
-
-p1 = ggplot(data = d.male[1:10,],aes(x = reorder(word,-freq),
-                                     y = freq))+
+p1 = ggplot(data = male_words,aes(x = reorder(word,-n),
+                                     y = n))+
            geom_bar(stat = "identity", fill = "purple")+
            theme(axis.text.x = element_text(angle = 45, hjust = 1))+
            labs(title = "Male Top 10 Key Words", 
                 x = "Happy Moments", y = "Frequency")
 
-p2 = ggplot(data = d.female[1:10,],aes(x = reorder(word,-freq),
-                                     y = freq))+
+
+p2 = ggplot(data = female_words,aes(x = reorder(word,-n),
+                                     y = n))+
            geom_bar(stat = "identity", fill = "red")+
            theme(axis.text.x = element_text(angle = 45, hjust = 1))+
            labs(title = "Female Top 10 Key Words",
@@ -247,37 +311,35 @@ wordcloud(tdm_no$term, tdm_no$`sum(count)`,
 ```
 
 ```{r  Parenthood ggplot dataframe}
-m.yes = as.matrix(tdm.yes)
-v.yes = sort(rowSums(m.yes),decreasing=TRUE)
-d.yes = data.frame(word = names(v.yes),freq=v.yes)
+yes_words = data_frame(line = 1:length(yes.hm), text = yes.hm)
+yes_words = yes_words %>%
+  unnest_tokens(word, text) %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 1749) %>%
+  mutate(word = reorder(word, n)) 
 
-m.no = as.matrix(tdm.no)
-v.no = sort(rowSums(m.no),decreasing=TRUE)
-d.no = data.frame(word = names(v.no),freq=v.no)
+no_words = data_frame(line = 1:length(no.hm), text = no.hm)
+no_words = no_words %>%
+  unnest_tokens(word, text) %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 2226) %>%
+  mutate(word = reorder(word, n)) 
 
-p3 = ggplot(data = d.yes[1:10,],aes(x = reorder(word,-freq),
-                                     y = freq))+
+p3 = ggplot(data = yes_words,aes(x = reorder(word,-n),
+                                     y = n))+
            geom_bar(stat = "identity", fill = "orange")+
            theme(axis.text.x = element_text(angle = 45, hjust = 1))+
            labs(title = "Parenthood Top 10 Key Words", 
                 x = "Happy Moments", y = "Frequency")
 
-p4 = ggplot(data = d.no[1:10,],aes(x = reorder(word,-freq),
-                                     y = freq))+
+p4 = ggplot(data = no_words,aes(x = reorder(word,-n),
+                                     y = n))+
            geom_bar(stat = "identity", fill = "lightblue")+
            theme(axis.text.x = element_text(angle = 45, hjust = 1))+
            labs(title = "Childlessness Top 10 Key Words", 
                 x = "Happy Moments", y = "Frequency")
         
 grid.arrange(arrangeGrob(p3, p4))
-
-hm.parenthood = data.frame(Overall = d.all$word[1:10],
-                       Freq.overall = d.all$freq[1:10],
-                       yes_HappyMoment = d.yes$word[1:10],
-                       Freq.yes = d.yes$freq[1:10],
-                       no_HappyMoment = d.no$word[1:10],
-                       Freq.no = d.no$freq[1:10])
-View(hm.parenthood)
 ```
 
 ```{r Marital ggplots}
@@ -290,10 +352,12 @@ v.married = sort(rowSums(m.married),decreasing=TRUE)
 d.married = data.frame(word = names(v.married),freq=v.married)
 
 single.hm = filter(hm.demographic,marital == "single")$text
-tdm.single = TermDocumentMatrix(VCorpus(VectorSource(single.hm)))
-m.single = as.matrix(tdm.single)
-v.single = sort(rowSums(m.single),decreasing=TRUE)
-d.single = data.frame(word = names(v.single),freq=v.single)
+single_words = data_frame(line = 1:length(single.hm), text = single.hm)
+single_words = single_words %>%
+  unnest_tokens(word, text) %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 1982) %>%
+  mutate(word = reorder(word, n)) 
 
 divorced.hm = filter(hm.demographic,marital == "divorced")$text
 tdm.divorced = TermDocumentMatrix(VCorpus(VectorSource(divorced.hm)))
@@ -320,8 +384,8 @@ p5 = ggplot(data = d.married[1:10,],aes(x = reorder(word,-freq),
            labs(title = "Married", x = "Happy Moments",
                 y = "Frequency")
 
-p6 = ggplot(data = d.single[1:10,],aes(x = reorder(word,-freq),
-                                     y = freq))+
+p6 = ggplot(data = single_words,aes(x = reorder(word,-n),
+                                     y = n))+
            geom_bar(stat = "identity", fill = "lightblue")+
            theme(axis.text.x = element_text(angle = 45, hjust = 1))+
            labs(title = "Single", x = "Happy Moments", 
@@ -340,6 +404,7 @@ p8 = ggplot(data = d.separated[1:10,],aes(x = reorder(word,-freq),
            theme(axis.text.x = element_text(angle = 45, hjust = 1))+
            labs(title = "Separated", x = "Happy Moments", 
                 y = "Frequency")
+
 p9 = ggplot(data = d.widowed[1:10,],aes(x = reorder(word,-freq),
                                      y = freq))+
            geom_bar(stat = "identity", fill = "black")+
@@ -351,14 +416,139 @@ p9 = ggplot(data = d.widowed[1:10,],aes(x = reorder(word,-freq),
 ggarrange(p5, p6, p7, p8, p9,common.legend=TRUE,legend = 'right')
 ```
 
-```{r Countries}
-unique(hm.demographic$country)
+```{r Countries Pre-processing}
+# Pre-processing regions and countries data
 nation.abbre = read.csv("country abbreviation.csv", header = T)
 View(nation.abbre)
+
+na = which(is.na(hm.demographic$country))  
+hm.country = hm.demographic[-na,]
+sum(is.na(hm.country$country))
+dim(hm.demographic)
+dim(hm.country)
+
+mark = c()
+for (i in 1:length(hm.country$country)){
+    mark[i] = grep(pattern = hm.country$country[i], nation.abbre$Abbrevation)
+}
+
+length(mark)
+
+hm.country$Region = as.character(nation.abbre$Region[mark])
+
+region = VCorpus(VectorSource(hm.country$Region))
+region = tm_map(region, stripWhitespace)  # remove white space
+reg = tidy(region)
+hm.country$Region = reg$text
+unique(hm.country$Region)
+
+AF = which(hm.country$Region == "NORTHERN AFRICA " | hm.country$Region == "SUB-SAHARAN AFRICA ")
+AS = which(hm.country$Region == "ASIA (EX. NEAR EAST) " | hm.country$Region == "NEAR EAST " | hm.country$country == "ARM" | hm.country$country == "KAZ")
+EU =  which(hm.country$Region == "WESTERN EUROPE "  | hm.country$Region == "EASTERN EUROPE " | hm.country$Region == "BALTICS " | hm.country$country == "MDA" | hm.country$country == "UKR" | hm.country$country == "RUS")
+N.A = which(hm.country$Region == "NORTHERN AMERICA ")
+S.A = which(hm.country$Region == "LATIN AMER. & CARIB " )
+OC = which(hm.country$Region == "OCEANIA ")
 ```
 
+```{r Count}
+AF.hm = hm.country$text[AF]
+tdm.AF = TermDocumentMatrix(VCorpus(VectorSource(AF.hm)))
+m.AF = as.matrix(tdm.AF)
+v.AF = sort(rowSums(m.AF),decreasing=TRUE)
+d.AF = data.frame(word = names(v.AF)[1:10],freq=v.AF[1:10])
+
+AS.hm = hm.country$text[AS]
+tdm.AS = TermDocumentMatrix(VCorpus(VectorSource(AS.hm)))
+m.AS = as.matrix(tdm.AS)
+v.AS = sort(rowSums(m.AS),decreasing=TRUE)
+d.AS = data.frame(word = names(v.AS)[1:10],freq=v.AS[1:10])
+
+EU.hm = hm.country$text[EU]
+tdm.EU = TermDocumentMatrix(VCorpus(VectorSource(EU.hm)))
+m.EU = as.matrix(tdm.EU)
+v.EU = sort(rowSums(m.EU),decreasing=TRUE)
+d.EU = data.frame(word = names(v.EU)[1:10],freq=v.EU[1:10])
+
+NA.hm = hm.country$text[N.A]
+NA_words = data_frame(line = 1:length(NA.hm), text = NA.hm)
+NA_words = NA_words %>%
+  unnest_tokens(word, text) %>%
+  count(word, sort = TRUE) %>%
+  filter(n > 2972) %>%
+  mutate(word = reorder(word, n)) 
+
+SA.hm = hm.country$text[S.A]
+tdm.SA = TermDocumentMatrix(VCorpus(VectorSource(SA.hm)))
+m.SA = as.matrix(tdm.SA)
+v.SA = sort(rowSums(m.SA),decreasing=TRUE)
+d.SA = data.frame(word = names(v.SA)[1:10],freq=v.SA[1:10])
+
+OC.hm = hm.country$text[OC]
+tdm.OC = TermDocumentMatrix(VCorpus(VectorSource(OC.hm)))
+m.OC = as.matrix(tdm.OC)
+v.OC = sort(rowSums(m.OC),decreasing=TRUE)
+d.OC = data.frame(word = names(v.OC)[1:10],freq=v.OC[1:10])
+
+hm.region = data.frame(AF = d.AF$word, AS = d.AS$word, EU = d.EU$word, N.A = NA_words$word, SA = d.SA$word, OC = d.OC$word)
+View(hm.region)
+```
+
+```{r WorldMap}
+af.nation = unique(hm.country$country[AF])
+as.nation = unique(hm.country$country[AS])
+eu.nation = unique(hm.country$country[EU])
+na.nation = unique(hm.country$country[N.A])
+sa.nation = unique(hm.country$country[S.A])
+oc.nation = unique(hm.country$country[OC])
+
+continent = c("Africa", "Asia", "Europe", "Northern America", "Southern America", "Oceania")
+
+Pop = c(length(AF),length(AS),length(EU),length(N.A),length(S.A),length(OC))
+
+nation.in.continent =c(length(af.nation),length(as.nation),length(eu.nation),length(na.nation),length(sa.nation),length(oc.nation))
 
 
+hover = character(6)
 
+for(i in 1:6){
+  hover[i] = paste( '<b>', continent[i],':<br>', 
+                    paste('   ','</b>',hm.region[[i]], '<br>',
+                          collapse=""),
+                    collapse="")
+}
+
+pop = rep(Pop,nation.in.continent)
+cont = rep(continent,nation.in.continent)
+all.nation = c(af.nation,as.nation,eu.nation,na.nation,sa.nation,oc.nation)
+rank.text = rep(hover,nation.in.continent)
+
+dataformap = data.frame(Nation = all.nation,
+                        Worker = pop,
+                        Continent = cont,
+                        text = rank.text)
+dim(dataformap)
+View(dataformap)
+
+l = list(color = toRGB("darkgrey"), width = 0.5)
+
+g = list(
+  showframe = FALSE,
+  showcoastlines = FALSE,
+  projection = list(type = 'Mercator')
+)
+
+p = plot_geo(dataformap) %>%
+  add_trace(
+    z = ~Worker, color = ~Worker, colors = 'Blues',
+    text = ~text, locations = ~Nation, marker = list(line = l)
+  ) %>%
+  colorbar(title = 'Number of Amazon MTurk Workers') %>%
+  layout(
+    title = 'Top 10 key words of Happy Moments in Each Continent',
+    geo = g
+  )
+p
+
+```
 
 
