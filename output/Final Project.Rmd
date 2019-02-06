@@ -22,7 +22,7 @@ setwd("~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihut
 <font size=3>
 HappyDB is a large scale collection of happy moments on Amazon Mechanical Turk (MTurk) workers. And HappyDB also collected the demographic information of these workers.
 
-Happiness is the emotion that we all share. However, things that make us happy might be relatively different from each other. Therefore, this project aims to analyze whether gender, marital status, parenthood and cultural background would differ the things and events that make people feel happy.
+Happiness is the emotion that we all share. However, things that make us happy might be relatively different from each other. Therefore, this project aims to analyze what makes people happy, and whether gender, marital status, parenthood and cultural background would differ the things and events that make people feel happy.
 
 ```{r set up,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
 packages.used=c("rvest", "tibble", "ggpubr", "ggplot2","igraph","ggraph","Matrix",
@@ -96,7 +96,7 @@ dict = tidy(corpus) %>%
 
 data("stop_words")
 word = c("happy","ago","yesterday","lot","today","months","month",
-                 "happier","happiest","last","week","past","happniess")
+                 "happier","happiest","last","week","past")
 
 stop_words = stop_words %>%
   bind_rows(mutate(tibble(word), lexicon = "updated"))
@@ -143,22 +143,13 @@ for (i in sort(unique(HappyMoments$wid))) {
 
 }
 
-#View(HappyMoments)
-#names(HappyMoments)
 hm.demographic = HappyMoments[,-c(1,3,4,6,7,8,10)]
-View(hm.demographic)
-#names(hm.demographic)
-#dim(hm.demographic)
-#datatable(hm.demographic)
-
-
-# View(hm.demographic)
-write_csv(hm.demographic, "~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output/hm.demographic.csv")
-write_csv(HappyMoments, "~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output/HappyMoment.csv")
+# write_csv(hm.demographic, "~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output/hm.demographic.csv")
+# write_csv(HappyMoments, "~/Desktop/GR5243 Applied Data Science/Project_1/Spring2019-Proj1-xinyihutay/output/HappyMoment.csv")
 
 ```
 
-# Section 1: Overview of the Happy Moments
+# Section 1: Overview of The Happy Moments
 
 This section focuses on analyzing all happy moments regardless of workers' demographic information.
 
@@ -186,7 +177,7 @@ wordcloud(tdm.overall$term, tdm.overall$`sum(count)`,
 
 
 
-## Part 2: Relationships between word
+## Part 2: Relationships Between Words
 
 In this part, I am interested in the relationships between words in all the happy moments descriptions. I want to whether examine which words tend to follow others immediately, or that tend to co-occur within the same documents.
 
@@ -224,14 +215,14 @@ ggraph(bigram_graph, layout = "fr") +
   theme_void()
 ```
 
-So I visualized some details of the text structure. We can see that words like **visit**, **party** and **school** are often followed by the word **friend**, which means when these events are related to friends, people usually get happy. 
+I visualize some details of the text structure. We can see that words like **visit**, **party** and **school** are often followed by the word **friend**, which means when these events are related to friends, people usually get happy. 
 
 We also see some pairs or triplets along the outside that form common short phrases related to happy moments, such as **brought home** and **read book**.
 
 
 ## Part 3: Topic Modeling
 
-Now in this part, I applied topic modeling to all the happy moments corpuses. I set the number of topics to be 9, which is the same as the number of 'topic_dict' in HappyDB data folder.
+Now in this part, I apply topic modeling to all happy moments corpus. I set the number of topics to be 9, which is the same as the number of 'topic_dict' in HappyDB data folder.
 
 ```{r warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
 comb_hm = vector(mode = "character",length = length(unique(HappyMoments$wid)))
@@ -264,7 +255,7 @@ hm_top_terms %>%
 ```
 
 
-According to the above plots and the words relationships we just found out, I sort the 9 topics as follows:
+According to the above plots and the words relationships we just found out, I sort the topics as follows:
 
 $$
 Topic\ 1: Shopping \\
@@ -277,10 +268,6 @@ Topic\ 7: Food \\
 Topic\ 8: School \\
 Topic\ 9: Family
 $$
-
-
-
-
 
 # Section 2: Analyze Happy Moments in Different Clusters
 
@@ -298,7 +285,10 @@ female.hm = filter(hm.demographic,gender == "f")$text
 tdm.female = TermDocumentMatrix(VCorpus(VectorSource(female.hm)))
 tdm.tidy.female = tidy(tdm.female)
 tdm_female = summarise(group_by(tdm.tidy.female, term), sum(count))
+```
 
+**Male**
+```{r male,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
 wordcloud(tdm_female$term, tdm_female$`sum(count)`,
           scale = c(5,0.1),
           max.words = 100,
@@ -308,6 +298,11 @@ wordcloud(tdm_female$term, tdm_female$`sum(count)`,
           use.r.layout = T,
           random.color = FALSE,
           colors = brewer.pal(8,"Accent"))
+```
+
+**Female**
+
+```{r female,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
 wordcloud(tdm_male$term, tdm_male$`sum(count)`,
           scale = c(5,0.1),
           max.words = 100,
@@ -320,9 +315,9 @@ wordcloud(tdm_male$term, tdm_male$`sum(count)`,
 
 ```
 
-The wordclouds look good, but except for 'day', 'time' and 'friend', we can hardly see other words clearly. So let's check these popular words by using ggplot.
+The wordclouds look good, but except for words **day**, **time** and **friend**, we can hardly see other words clearly. So let's check these popular words by other visualization plot.
 
-```{r  Gender freq ggplot}
+```{r  Gender freq ggplot,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
 male.words = data_frame(line = 1:length(male.hm), text = male.hm)
 male_words = male.words %>%
   unnest_tokens(word, text) %>%
@@ -356,76 +351,9 @@ require("gridExtra")
 grid.arrange(arrangeGrob(p1, p2))
 ```
 
-In both plots, the first 3 words are 'friend', 'day' and 'time'. Their frequencies are almost equivalent in female data set, while in male data set, the word frequency of ‘friend’ is obviously higher than the other two words. And the fourth words in both data set are spouse, which is good. 
+In both plots, the first 3 words are **day**, **time** and **friend**. And Their frequencies are almost equivalent in female data set, while in male data set, the word frequency of **friend** is much higher than the other two words. The fourth word in both data set is spouse, which is good. 
 
-In the male data set, words 'played', 'watched' rank higher than family. But in female data set, words related to family and home are in the front. So you can see the differences of happy moments between female and male.
-
-```{r male tm,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
-index_male = which(hm.demographic$gender == "m")
-comb_male = vector(mode = "character",
-                   length = length(unique(hm.demographic$wid[index_male])))
-
-for (i in sort(unique(hm.demographic$wid[index_male]))) {
-  index = which(hm.demographic$wid == i)
-  comb_male[i] = paste(hm.demographic$text[index], collapse = " ")
-}
-
-dtm.male = DocumentTermMatrix(VCorpus(VectorSource(comb_male)))
-rowTotals.male = apply(dtm.male, 1, sum) 
-dtm.male  = dtm.male[rowTotals.male>0, ]
-
-male_lda = LDA(dtm.male, k = 9, control = list(seed = 1234))
-male_topics = tidy(male_lda, matrix = "beta")
-
-male_top_terms = male_topics %>%
-  group_by(topic) %>%
-  top_n(10, beta) %>%
-  ungroup() %>%
-  arrange(topic, -beta)
-
-male.p = male_top_terms %>%
-  mutate(term = reorder(term, beta)) %>%
-  ggplot(aes(term, beta, fill = factor(topic))) +
-  geom_col(show.legend = F) +
-  facet_wrap(~ topic, scales = "free") +
-  coord_flip()+
-  labs(title = "Male Topics ")
-#male.p
-```
-
-```{r female tm,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
-index_female = which(hm.demographic$gender == "f")
-comb_female = vector(mode = "character",
-                   length = length(unique(hm.demographic$wid[index_female])))
-
-for (i in sort(unique(hm.demographic$wid[index_female]))) {
-  index = which(hm.demographic$wid == i)
-  comb_female[i] = paste(hm.demographic$text[index], collapse = " ")
-}
-
-dtm.female = DocumentTermMatrix(VCorpus(VectorSource(comb_female)))
-rowTotals.female = apply(dtm.female, 1, sum) 
-dtm.female  = dtm.female[rowTotals.female>0, ]
-
-female_lda = LDA(dtm.female, k = 9, control = list(seed = 1234))
-female_topics = tidy(female_lda, matrix = "beta")
-
-female_top_terms = female_topics %>%
-  group_by(topic) %>%
-  top_n(10, beta) %>%
-  ungroup() %>%
-  arrange(topic, -beta)
-
-female.p = female_top_terms %>%
-  mutate(term = reorder(term, beta)) %>%
-  ggplot(aes(term, beta, fill = factor(topic))) +
-  geom_col(show.legend = F) +
-  facet_wrap(~ topic, scales = "free") +
-  coord_flip()+
-  labs(title = "Female Topics ")
-
-#female.p
-```
+In the male data set, words **played** and **watched** rank higher than **family**. But in female data set, words related to family and home are in the front. So you can see the differences of happy moments between female and male.
 
 ## Part 2: Parenthood
 
@@ -464,7 +392,7 @@ wordcloud(tdm_no$term, tdm_no$`sum(count)`,
 
 The popular words in these two clusters are apparently different. For those who have kids, although **day**, **time** and **friends** are still the frequent words in their happy moments descriptions, family related words like **daughter** and **son** contribute to their happy moments a lot. 
 
-While in the no-child cluster, except for words **day**, **time** and **friends**, we can see words related to entertainment show up frequently, such as **game**, **played** and **watched**.
+While in the no-child cluster, except for words **day**, **time** and **friends**, we can see words related to entertainment show up frequently, such as **game**, **played** and **watched**. And this result is quite reasonable.
 
 ```{r  Parenthood ggplot,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
 yes_words = data_frame(line = 1:length(yes.hm), text = yes.hm)
@@ -570,34 +498,25 @@ p9 = ggplot(data = d.widowed[1:10,],aes(x = reorder(word,-freq),
 ggarrange(p5, p6, p7, p8, p9, nrow = 2, ncol = 3)
 ```
 
-In each marital status, words **day**, **time** and **friends** are still frequently appear. And in cluster single, words related to entertainment are popular. In cluster married, family related words rank higher than the words **watched**, which suggests that positive things or events related to family usually make married people happy and these happy moments are memorable.
+In each marital status, words **day**, **time** and **friends** are still frequently appear. And in cluster single, words related to entertainment are popular. In cluster married, family related words rank higher than the words **watched**, which suggests that positive things or events related to family usually make married people happy and these happy moments tend to be remembered.
 
 In clusters divorced and separated, words **daughter**, **son** and **watched** rank high, while words home ranks lower. To my mind, this makes sense since divorce is a formal ending of a marriage, and separated couples do not have strong connection to their spouses as married people do, or maybe some of these separated couples are processing divorce. So in this case, doing some entertainments and their kids are the reasons why they are happy.
 
 
 ## Part 4: Continent
 
-In this final part, I sort Amazon MTurk workers into six main continents: Asia, Africa, Europe, Northern America, Southern America and Oceania. I want to know wether people’s cultural background will cause differences in terms of happiness.
+In this final part, I sort Amazon MTurk workers into six main continents: Asia, Africa, Europe, Northern America, Southern America and Oceania. I want to know wether people's cultural background will cause differences in terms of happiness.
 \
-\
-
 ```{r Countries Pre-processing,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
-# Pre-processing regions and countries data
 nation.abbre = read.csv("country abbreviation.csv", header = T)
-#View(nation.abbre)
 
 na = which(is.na(hm.demographic$country))  
 hm.country = hm.demographic[-na,]
-#sum(is.na(hm.country$country))
-#dim(hm.demographic)
-#dim(hm.country)
 
 mark = c()
 for (i in 1:length(hm.country$country)){
     mark[i] = grep(pattern = hm.country$country[i], nation.abbre$Abbrevation)
 }
-
-#length(mark)
 
 hm.country$Region = as.character(nation.abbre$Region[mark])
 
@@ -605,7 +524,6 @@ region = VCorpus(VectorSource(hm.country$Region))
 region = tm_map(region, stripWhitespace)  # remove white space
 reg = tidy(region)
 hm.country$Region = reg$text
-#unique(hm.country$Region)
 
 AF = which(hm.country$Region == "NORTHERN AFRICA " | hm.country$Region == "SUB-SAHARAN AFRICA ")
 
@@ -713,8 +631,6 @@ dataformap = data.frame(Nation = all.nation,
                         Worker = pop,
                         Continent = cont,
                         text = rank.text)
-#dim(dataformap)
-#View(dataformap)
 
 l = list(color = toRGB("darkgrey"), width = 0.5)
 
@@ -735,23 +651,21 @@ p = plot_geo(dataformap) %>%
     geo = g,
     autosize = FALSE,
     width = 900,
-    margin = list(t=25, l=0, r=0, d=0)
+    margin = list(t=20, l=0, r=0, d=0)
   )
 
 p
-
 ```
 
-Compared with other continents, workers from Africa talked about their friends a lot in their happy moments descriptions. And the word job appears only in Africa cluster.
+Compared with other continents, workers from Africa talked about their friends a lot in their happy moments descriptions. And the word **job** appears only in Africa cluster.
 
-In the Asia cluster, we only see one word which is kind of related to entertainment, that is enjoyed. It seems like And many Asian workers described their happy moments related to the word birthday which only appears in Asia cluster.  
+In the Asia cluster, we only see one word that is kind of related to entertainment, that is **enjoyed**.And many Asian workers mentioned the word **birthday** which only appears in Asia cluster.  
 
-The first 10 popular words of workers from Northern America are somewhat similar to that of Europe. They all contain a couple of  words related to entertainments like won played watched, and these words rank relatively high. But in terms of people and family, Europe cluster contains word girlfriend and then the word family, while Northern America cluster contains words home and daughter. Besides, word dinner shows up in Northern America cluster, it might suggest that dinner is something important in Northern American culture.
+The first 10 popular words of workers from Northern America are somewhat similar to that of Europe. They all contain a couple of words related to entertainments like **won**, **played**, **watched**, and these words rank relatively high. But in terms of people and family, Europe cluster contains word **girlfriend** followed by the word family, while Northern America cluster contains words **home** and **daughter**. Besides, the word **dinner** shows up in Northern America cluster, it might suggest that dinner is something important in Northern American culture.
 
-Let’s move on to the Southern America cluster. Workers from Southern America talked a lot about shopping and entertainments in their happy moments, because this cluster contains words buy played and game, and notice that the word buy ranks high.
+Let's move on to the Southern America cluster. Workers from Southern America talked a lot about shopping and entertainments in their happy moments, because this cluster contains words **buy**, **played** and **game**, and notice that the word **buy** ranks high.
 
-Finally, let’s check Oceania cluster. The top 10 popular words of happy moments in this cluster is very different from the rest of 5 clusters. Word friend day and time do not rank very high. And we can see words like read and dog appear in this cluster. 
-
+Finally, let's check Oceania cluster. The top 10 popular words of happy moments in this cluster is very different from the rest of 5 clusters. Word **friend**, **day** and **time** do not rank very high. And we can see words like **read** and **dog** appear in this cluster. 
 ```{r ggplot,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
 p.af = ggplot(data = d.AF,aes(x = reorder(word,-freq),
                                      y = freq))+
@@ -796,4 +710,32 @@ p.oc =  ggplot(data = d.OC,aes(x = reorder(word,-freq),
 ggarrange(p.af, p.as, p.eu, p.na, p.sa, p.oc, ncol = 3, nrow = 2)
 ```
 
-However, as you can see in the y-lab, it reveals that the number of workers from Africa, Southern America and Oceania is quite small, Oceania in particular. So the analysis on popular words in these two clusters is not very accurate.
+However, as you can see in the y-lab, it reveals that the number of workers from Africa, Southern America and Oceania is quite small, Oceania in particular. So the analysis on popular words in these three clusters cannot give us a typical conclusion.
+
+> ## Conclusions
+<center>
+![Happy](../figs/happy.gif) 
+</center>  
+
+
+
+* Generally, people feel happy because they spend positive moments with their friends and families. 
+
+* Events that do not have friends and families involved can also create happiness, such as saved money, walked dog and watched tv etc.
+
+* Gender, parenthood, marital status and cultural background do vary the factors that make people feel happy.
+
+
+<font size=1.5>
+**Reference:**   
+
+1. Country Code(ISO 3): From<https://unstats.un.org/unsd/tradekb/knowledgebase/country-code>   
+
+2. Countries of The World: From<www.statvision.com/webinars/countries%20of%20the%20world.xls>  
+
+3. Bojack Horseman: From<https://tenor.com/view/awesome-bojack-horseman-gif-9606938> </front>
+
+
+
+
+
