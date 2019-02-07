@@ -548,19 +548,19 @@ AF.hm = hm.country$text[AF]
 tdm.AF = TermDocumentMatrix(VCorpus(VectorSource(AF.hm)))
 m.AF = as.matrix(tdm.AF)
 v.AF = sort(rowSums(m.AF),decreasing=TRUE)
-d.AF = data.frame(word = names(v.AF)[1:10],freq=round(100*v.AF[1:10]/sum(v.AF),2))
+d.AF = data.frame(word = names(v.AF)[1:10],freq=v.AF[1:10])
 
 AS.hm = hm.country$text[AS]
 tdm.AS = TermDocumentMatrix(VCorpus(VectorSource(AS.hm)))
 m.AS = as.matrix(tdm.AS)
 v.AS = sort(rowSums(m.AS),decreasing=TRUE)
-d.AS = data.frame(word = names(v.AS)[1:10],freq=round(100*v.AS[1:10]/sum(v.AS),2))
+d.AS = data.frame(word = names(v.AS)[1:10],freq=v.AS[1:10])
 
 EU.hm = hm.country$text[EU]
 tdm.EU = TermDocumentMatrix(VCorpus(VectorSource(EU.hm)))
 m.EU = as.matrix(tdm.EU)
 v.EU = sort(rowSums(m.EU),decreasing=TRUE)
-d.EU = data.frame(word = names(v.EU)[1:10],freq=round(100*v.EU[1:10]/sum(v.EU),2))
+d.EU = data.frame(word = names(v.EU)[1:10],freq=v.EU[1:10])
 
 NA.hm = hm.country$text[N.A]
 NA_words = data_frame(line = 1:length(NA.hm), text = NA.hm)
@@ -575,33 +575,33 @@ NA_words = NA_words %>%
   mutate(word = reorder(word, n)) 
 
 count = as.numeric(NA_words$n)
-d.NA = data.frame(word = as.character(NA_words$word), freq=round(100*count/total,2))
+d.NA = data.frame(word = as.character(NA_words$word), freq=count[1:10]) ######
 
 SA.hm = hm.country$text[S.A]
 tdm.SA = TermDocumentMatrix(VCorpus(VectorSource(SA.hm)))
 m.SA = as.matrix(tdm.SA)
 v.SA = sort(rowSums(m.SA),decreasing=TRUE)
-d.SA = data.frame(word = names(v.SA)[1:10],freq=round(100*v.SA[1:10]/sum(v.SA),2))
+d.SA = data.frame(word = names(v.SA)[1:10],freq=v.SA[1:10])
 
 OC.hm = hm.country$text[OC]
 tdm.OC = TermDocumentMatrix(VCorpus(VectorSource(OC.hm)))
 m.OC = as.matrix(tdm.OC)
 v.OC = sort(rowSums(m.OC),decreasing=TRUE)
-d.OC = data.frame(word = names(v.OC)[1:10],freq=round(100*v.OC[1:10]/sum(v.OC),2))
+d.OC = data.frame(word = names(v.OC)[1:10],freq=v.OC[1:10])
 
 hm.region = data.frame(AF = d.AF$word, 
                        AS = d.AS$word, 
                        EU = d.EU$word, 
-                       N.A = d.NA$word, 
+                       N.A = d.NA$word,   
                        SA = d.SA$word, 
                        OC = d.OC$word)
 
-hm.reg.freq = data.frame(AF.freq = d.AF$freq,
-                         AS.freq = d.AS$freq,
-                         EU.freq = d.EU$freq,
-                         NA.freq = d.NA$freq,
-                         SA.freq = d.SA$freq,
-                         OC.freq = d.OC$freq)
+hm.reg.freq = data.frame(AF.freq = round(100*v.AF[1:10]/sum(v.AF),2),
+                         AS.freq = round(100*v.AS[1:10]/sum(v.AS),2),
+                         EU.freq = round(100*v.EU[1:10]/sum(v.EU),2),
+                         NA.freq = round(100*count/total,2), 
+                         SA.freq = round(100*v.SA[1:10]/sum(v.SA),2),
+                         OC.freq = round(100*v.OC[1:10]/sum(v.OC),2))
 ```
 
 ```{r WorldMap,warning=FALSE,error=FALSE,echo=FALSE,message=FALSE}
