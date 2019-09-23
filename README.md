@@ -14,6 +14,10 @@ Term: Spring 2019
 
 + Project summary: Happiness is the emotion that we all share. However, things that make us happy might be relatively different from each other. Therefore, this project aims to analyze what makes people happy, and whether gender, marital status, parenthood and cultural background would differ the things and events that make people feel happy.
 
++ This project is done by using R.
+
++ Methods models and techniques that are used in this project: Wordcloud, bigrams and correlations, topic modeling.
+
 + See [data story](https://htmlpreview.github.io/?https://github.com/xinyihutay/Spring2019-Proj1-xinyihutay/blob/master/output/Project%201.html)
 
 Following [suggestions](http://nicercode.github.io/blog/2013-04-05-projects/) by [RICH FITZJOHN](http://nicercode.github.io/about/#Team) (@richfitz). This folder is orgarnized as follows.
